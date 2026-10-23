@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claims review</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #111; background: #f7f7f8; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 22px; margin: 0 0 16px; }
+    form { display: flex; gap: 8px; margin-bottom: 16px; }
+    input { flex: 1; padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; font: inherit; }
+    button { padding: 8px 16px; border: 0; border-radius: 6px; background: #1b4d8f; color: #fff; font: inherit; cursor: pointer; }
+    #member-name { font-weight: 600; margin: 0 0 8px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e3e3e3; font-size: 14px; }
+    td.amount { text-align: right; }
+    .error { color: #a00; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Claims review</h1>
+    <form id="search">
+      <label for="member-id" hidden>Member id</label>
+      <input id="member-id" placeholder="Member id, e.g. M-1001" required>
+      <button type="submit">Search</button>
+    </form>
+    <p id="member-name"></p>
+    <table id="claims" hidden>
+      <thead><tr><th>Claim</th><th>Provider</th><th>Service date</th><th>Status</th><th>Amount</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </main>
+  <script>
+    let token;
+
+    async function getToken() {
+      const body = new URLSearchParams({ grant_type: "password", username: "staff", password: "staff-local" });
+      const response = await fetch("/oauth/token", { method: "POST", body });
+      return (await response.json()).access_token;
+    }
+
+    async function get(path) {
+      token ??= await getToken();
+      const response = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error(`${response.status}`);
+      return response.json();
+    }
+
+    document.getElementById("search").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const id = document.getElementById("member-id").value.trim();
+      const name = document.getElementById("member-name");
+      const table = document.getElementById("claims");
+      const rows = table.querySelector("tbody");
+      name.className = "";
+      name.textContent = "Loading…";
+      table.hidden = true;
+      rows.replaceChildren();
+      try {
+        const [member, claims] = await Promise.all([get(`/api/members/${id}`), get(`/api/members/${id}/claims`)]);
+        name.textContent = member.name;
+        for (const c of claims) {
+          const row = rows.insertRow();
+          for (const value of [c.id, c.provider, c.serviceDate, c.status]) row.insertCell().textContent = value;
+          const amount = row.insertCell();
+          amount.className = "amount";
+          amount.textContent = `$${c.amount.toFixed(2)}`;
+        }
+        table.hidden = false;
+      } catch {
+        name.className = "error";
+        name.textContent = "Member not found.";
+      }
+    });
+  </script>
+</body>
+</html>

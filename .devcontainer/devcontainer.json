@@ -1,0 +1,14 @@
+{
+  "name": "Claims regression suite challenge",
+  "image": "mcr.microsoft.com/playwright/dotnet:v1.49.0-noble",
+  "forwardPorts": [5080],
+  "portsAttributes": {
+    "5080": { "label": "API and page" }
+  },
+  "postCreateCommand": "dotnet build api && dotnet build tests",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-dotnettools.csdevkit"]
+    }
+  }
+}
